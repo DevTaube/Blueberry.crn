@@ -8,11 +8,6 @@
             pointer: Pointer = DocumentPointer();
             keyboard: Keyboard = DocumentKeyboard();
 
-            amongus: Audio = Audio("amogus.wav");
-            amongusSource: AudioSource = AudioSource();
-            amongusSource.repeat(true);
-            amongusSource.setVolume(10f32);
-
             x: f32 = 0f32;
             y: f32 = 0f32;
 
@@ -29,26 +24,13 @@
                 if(pointer.pressing(LeftMouseButton), {
                     x = pointer.mouseX();
                     y = pointer.mouseY();
-                    if(amongus.loaded && !amongusSource.playing(), { amongusSource.play(amongus); });
                 });
 
                 for(pointer.touches(), (touch: arr) -> lpa {
                     x = touch[0u64];
                     y = touch[1u64];
-                    if(amongus.loaded && !amongusSource.playing(), { amongusSource.play(amongus); });
                     -> cont;
                 });
-
-                AudioListener.setPosition(
-                    f32~canvas.width() / 2f32,
-                    0f32,
-                    f32~canvas.height() / 2f32
-                );
-                amongusSource.setPosition(
-                    x,
-                    0f32,
-                    y
-                );
 
                 canvas.clear(15u8, 15u8, 15u8, 255u8);
                 canvas.drawRect(
