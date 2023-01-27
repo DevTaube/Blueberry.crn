@@ -1,0 +1,27 @@
+
+_bAudioContext: JsRef = JsRef();
+jsFun("(audioRef) => { setJsRef(audioRef, new (window.AudioContext || window.webkitAudioContext)()); }")(_bAudioContext);
+
+Audio: type = $(audioUrl: str) {
+
+    loaded: bool = false;
+    onLoad: fun = {};
+
+    _audio: JsRef = JsRef();
+
+    _internalOnLoad: fun = {
+        loaded = true;
+        onLoad();
+    };
+
+    jsFun("(audioContextRef, audioUrl, audioRef, onLoad) => {" +
+        "fetch(audioUrl)" +
+                ".then(response => response.arrayBuffer())" +
+                ".then(responseBuffer => getJsRef(audioContextRef).decodeAudioData(responseBuffer))" +
+                ".then(audioBuffer => {" +
+                    "setJsRef(audioRef, audioBuffer);" +
+                    "onLoad();" +
+                "});" +
+    "}")(_bAudioContext, audioUrl, _audio, _internalOnLoad);
+
+};

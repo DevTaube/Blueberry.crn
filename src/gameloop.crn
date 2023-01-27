@@ -1,0 +1,40 @@
+
+GameloopFunctions: type = $() {
+
+    _handler: fun = {};
+    running: bool = false;
+
+    _requestAnimationFrame: fun = jsFun("(callback) => { requestAnimationFrame((timestamp) => { callback(currantCreateU64(Math.floor(timestamp * 1000))); }); }");
+
+    start: fun = (frameCallback: fun) {
+        _handler = frameCallback;
+        if(!running, {
+            _requestAnimationFrame(_internalHandler);
+        });
+        running = true;
+    };
+
+    _lastTimestamp: u64 = 0u64;
+    _deltaTime: f64 = 0f64;
+
+    _internalHandler: fun = (timestamp: u64) {
+        if(!running, ^{->});
+        if(_lastTimestamp != 0u64, {
+            _deltaTime = f64~(timestamp - _lastTimestamp) / 1000f64 / 1000f64;
+        });
+        _lastTimestamp = timestamp;
+        _handler();
+        _requestAnimationFrame(_internalHandler);
+    };
+
+    deltaTime: fun = () -> f64 {
+        -> _deltaTime;
+    };
+
+    stop: fun = {
+        running = false;
+    };
+
+};
+
+Gameloop: GameloopFunctions = GameloopFunctions();

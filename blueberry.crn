@@ -1,0 +1,968 @@
+
+// "src/util.crn"
+
+jsEval: fun = f@eval;
+
+// holding a reference to a javascript object
+JsRef: type = $() {
+    refFun: fun = {};
+    get: fun = (expectedType: type) -> expectedType {
+        -> getJsRefCurrantValue(refFun, expectedType);
+    };
+    set: fun = (value: ?) {
+        -> setJsRefCurrant(refFun, value);
+    };
+};
+jsEval("function setJsRef(ref, value) {" +
+    // This one is hacky. "ref.refFun.ref" holds an object meant for the standard library and NOT for the user.
+    // It holds the object representing the function inside of the interpreter, and it's only here so that the
+    // function exposed to Javascript can call it's Currant equivalent.
+    // Here we use it as a kind of pointer, by attaching a new value to it, and later getting it.
+    // The interpreter will make sure it gets garbage collected correctly and won't get destroyed early.
+    "ref.refFun.ref.refValue = value;" +
+"}");
+jsEval("function getJsRef(ref) {" +
+    "return ref.refFun.ref.refValue;" +
+"}");
+jsEval("function getJsRefCurrant(refFun, type) {" +
+    "return type.fromValue(refFun.ref.refValue);" +
+"}");
+getJsRefCurrant: fun = f@getJsRefCurrant;
+jsEval("function setJsRefCurrant(refFun, value) {" +
+    "refFun.ref.refValue = value;" +
+"}");
+setJsRefCurrant: fun = f@setJsRefCurrant;
+
+// getting a function from js code
+jsEval("let blueberryLastJsFun = () => {};");
+jsEval("function blueberryGetLastJsFun() { return currantCreateFun(blueberryLastJsFun); }");
+getLastJsFun: fun = f@blueberryGetLastJsFun;
+jsFun: fun = (jsLambdaExpression: str) -> fun {
+    jsEval("blueberryLastJsFun = " + jsLambdaExpression + ";");
+    -> getLastJsFun();
+};
+
+// debug logging
+debug: fun = jsFun("(x) => console.log(x)");
+
+// getting file content
+getFileContent: fun = jsFun("(url, currantCallback) => {" +
+    "fetch(url)" +
+        ".then(response => response.text())" +
+        ".then(text => currantCallback(currantCreateStr(text)))" +
+        ".catch(error => { throw error; });" +
+"}");
+
+
+
+// "src/math/vec.crn"
+
+vec2: type = $(x: f32, y: f32) {};
+
+vec3: type = $(x: f32, y: f32, z: f32) {};
+
+vec4: type = $(x: f32, y: f32, z: f32, w: f32) {};
+
+
+VecFunctions: type = $() {
+
+    _stdLen: fun = len;
+
+    isVec: fun = (val: ?) -> bool {
+        if(#val == vec2, ^{-> true});
+        if(#val == vec3, ^{-> true});
+        if(#val == vec4, ^{-> true});
+        -> false;
+    };
+
+    toArray: fun = (vec: ? => isVec(vec)) -> arr {
+        if(#vec == vec2, ^{-> [f32: vec.x, vec.y]});
+        if(#vec == vec3, ^{-> [f32: vec.x, vec.y, vec.z]});
+        if(#vec == vec4, ^{-> [f32: vec.x, vec.y, vec.z, vec.w]});
+    };
+
+    fromArray: fun = (values: arr => Array.itemType(values) == f32, vecType: type) -> vecType {
+        if(_stdLen(values) == 2u64, ^{-> vec2(values[0u64], values[1u64])});
+        if(_stdLen(values) == 3u64, ^{-> vec3(values[0u64], values[1u64], values[2u64])});
+        if(_stdLen(values) == 4u64, ^{-> vec4(values[0u64], values[1u64], values[2u64], values[3u64])});
+    };
+
+    // component-wise math operations
+
+    abs: fun = (x: ? => isVec(x)) -> #x {
+        values: arr = toArray(x);
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            values[i] = Math.abs(values[i]);
+            -> cont;
+        });
+        -> fromArray(values, #x);
+    };
+
+    add: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] + bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    sub: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] - bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    mul: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] * bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    div: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] / bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    min: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = Math.min(aValues[i], bValues[i]);
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    max: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = Math.max(aValues[i], bValues[i]);
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    // operations on this vector
+
+    len: fun = (x: ? => isVec(x)) -> f32 {
+        values: arr = toArray(x);
+        squareSum: f32 = 0f32;
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            squareSum = squareSum + (values[i] * values[i]);
+            -> cont;
+        });
+        -> Math.sqrt(squareSum);
+    };
+
+    neg: fun = (x: ? => isVec(x)) -> #x {
+        values: arr = toArray(x);
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            values[i] = values[i] * -1f32;
+            -> cont;
+        });
+        -> fromArray(values, #x);
+    };
+
+    scale: fun = (x: ? => isVec(x), f: f32) -> #x {
+        values: arr = toArray(x);
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            values[i] = values[i] * f;
+            -> cont;
+        });
+        -> fromArray(values, #x);
+    };
+
+    normal: fun = (x: ? => isVec(x)) -> #x {
+        -> scale(x, 1f32 / len(x));
+    };
+
+    // operations on this and another vector
+
+    dist: fun = (a: ? => isVec(a), b: #a) -> f32 {
+        -> len(sub(a, b));
+    };
+
+    dot: fun = (a: ? => isVec(a), b: #a) -> f32 {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        dotProduct: f32 = 0f32;
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            dotProduct = dotProduct + aValues[i] * bValues[i];
+            -> cont;
+        });
+        -> dotProduct;
+    };
+
+    angle: fun = (a: ? => isVec(a), b: #a) -> f32 {
+        -> Math.acos(dot(a, b) / (len(a) * len(b)));
+    };
+
+};
+
+Vec: VecFunctions = VecFunctions();
+
+
+
+// "src/graphics/transform.crn"
+
+Transform: type = $() {
+
+    actions: arr = [fun: 0u64: none];
+
+    _createTransform: fun = (newActions: arr) -> Transform {
+        result: Transform = Transform();
+        result.actions = newActions;
+        -> result;
+    };
+
+    _apply: fun = (g: JsRef) {
+        for(actions, (action: fun) -> lpa {
+            action(g);
+            -> cont;
+        });
+    };
+
+    _reset: fun = (g: JsRef) {
+        jsFun("(gRef) => { getJsRef(gRef).resetTransform(); }")(g);
+    };
+
+    translate: fun = (x: f32, y: f32) -> Transform {
+        -> _createTransform(Array.add(actions, (g: JsRef) { jsFun("(gRef, x, y) => { getJsRef(gRef).translate(x, y); }")(g, x, y); }));
+    };
+
+    rotate: fun = (radians: f32) -> Transform {
+        -> _createTransform(Array.add(actions, (g: JsRef) { jsFun("(gRef, rad) => { getJsRef(gRef).rotate(rad); }")(g, radians); }));
+    };
+
+    rotateAround: fun = (radians: f32, x: f32, y: f32) -> Transform {
+        -> translate(x, y).rotate(radians).translate(0f32 - x, 0f32 - y);
+    };
+
+};
+
+
+
+// "src/graphics/text_alignment.crn"
+
+TextAlignment: type = str;
+
+TextLeft: TextAlignment = "right";
+TextCenter: TextAlignment = "center";
+TextRight: TextAlignment = "left";
+
+
+
+// "src/graphics/surface.crn"
+
+Surface: type = $(_canvas: JsRef, _g: JsRef, _loading: bool) {
+
+    loaded: bool = !_loading;
+    onLoad: fun = {};
+
+    _onImageLoad: fun = {
+        img: JsRef = _canvas;
+        _canvas = JsRef();
+        width: u64 = jsFun("(imgRef) => currantCreateU64(getJsRef(imgRef).width)")(img);
+        height: u64 = jsFun("(imgRef) => currantCreateU64(getJsRef(imgRef).height)")(img);
+        newSurface: Surface = SizedSurface(width, height);
+        _canvas = newSurface._canvas;
+        _g = newSurface._g;
+        jsFun("(gRef, imgRef) => {" +
+            "getJsRef(gRef).drawImage(getJsRef(imgRef), 0, 0);" +
+        "}")(_g, img);
+        loaded = true;
+        onLoad();
+    };
+    if(_loading, {
+        jsFun("(imgRef, onLoad) => { getJsRef(imgRef).onload = () => { onLoad(); }; }")(_canvas, _onImageLoad);
+    });
+
+    width: fun = () -> u64 {
+        if(!loaded, ^{-> 0u64});
+        -> jsFun("(canvasRef) => currantCreateU64(getJsRef(canvasRef).width)")(_canvas);
+    };
+
+    height: fun = () -> u64 {
+        if(!loaded, ^{-> 0u64});
+        -> jsFun("(canvasRef) => currantCreateU64(getJsRef(canvasRef).height)")(_canvas);
+    };
+
+
+    _setCompositeOpClear: fun = {
+        jsFun("(gRef) => { getJsRef(gRef).globalCompositeOperation = \"destination-out\"; }")(_g);
+    };
+
+    _setCompositeOpDraw: fun = {
+        jsFun("(gRef) => { getJsRef(gRef).globalCompositeOperation = \"source-over\"; }")(_g);
+    };
+
+    drawSurface: fun = (src: Surface, a: u8, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        drawSubSurface(src, a, 0u64, 0u64, src.width(), src.height(), x, y, w, h, t);
+    };
+    drawSubSurface: fun = (src: Surface, a: u8, sX: u64, sY: u64, sW: u64, sH: u64, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        if(!src.loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, srcRef, a, sX, sY, sW, sH, x, y, w, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.globalAlpha = Number(a) / 255;" +
+            "g.drawImage(getJsRef(srcRef), Number(sX), Number(sY), Number(sW), Number(sH), x, y, w, h);" +
+        "}")(_g, src._canvas, a, sX, sY, sW, sH, x, y, w, h);
+        t._reset(_g);
+    };
+
+    drawRect: fun = (r: u8, g: u8, b: u8, a: u8, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, cR, cG, cB, cA, x, y, w, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.fillStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.fillRect(x, y, w, h);" +
+        "}")(_g, r, g, b, a, x, y, w, h);
+        t._reset(_g);
+    };
+
+    clearRect: fun = (x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawRect(0u8, 0u8, 0u8, 255u8, x, y, w, h, t);
+        _setCompositeOpDraw();
+    };
+
+    drawOval: fun = (r: u8, g: u8, b: u8, a: u8, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, cR, cG, cB, cA, x, y, w, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.fillStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.beginPath();" +
+            "g.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 2 * Math.PI, false);" +
+            "g.fill();" +
+        "}")(_g, r, g, b, a, x, y, w, h);
+        t._reset(_g);
+    };
+
+    clearOval: fun = (x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawOval(0u8, 0u8, 0u8, 255u8, x, y, w, h, t);
+        _setCompositeOpDraw();
+    };
+
+    drawLine: fun = (r: u8, g: u8, b: u8, a: u8, x1: f32, y1: f32, x2: f32, y2: f32, w: f32) {
+        if(!loaded, ^{->});
+        jsFun("(gRef, cR, cG, cB, cA, x1, y1, x2, y2, w) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.strokeStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.lineWidth = w;" +
+            "g.beginPath();" +
+            "g.moveTo(x1, y1);" +
+            "g.lineTo(x2, y2);" +
+            "g.stroke();" +
+        "}")(_g, r, g, b, a, x1, y1, x2, y2, w);
+    };
+
+    clearLine: fun = (x1: f32, y1: f32, x2: f32, y2: f32, w: f32) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawLine(0u8, 0u8, 0u8, 255u8, x1, y1, x2, y2, w);
+        _setCompositeOpDraw();
+    };
+
+    drawQuadraticBezier: fun = (r: u8, g: u8, b: u8, a: u8, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, w: f32) {
+        if(!loaded, ^{->});
+        jsFun("(gRef, cR, cG, cB, cA, x1, y1, x2, y2, x3, y3, w) => {" +
+             "const g = getJsRef(gRef);" +
+             "g.strokeStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+             "g.lineWidth = w;" +
+             "g.beginPath();" +
+             "g.moveTo(x1, y1);" +
+             "g.quadraticCurveTo(x2, y2, x3, y3);" +
+             "g.stroke();" +
+        "}")(_g, r, g, b, a, x1, y1, x2, y2, x3, y3, w);
+    };
+
+    clearQuadraticBezier: fun = (x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, w: f32) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawQuadraticBezier(0u8, 0u8, 0u8, 255u8, x1, y1, x2, y2, x3, y3, w);
+        _setCompositeOpDraw();
+    };
+
+    drawCubicBezier: fun = (r: u8, g: u8, b: u8, a: u8, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, x4: f32, y4: f32, w: f32) {
+        if(!loaded, ^{->});
+        jsFun("(gRef, cR, cG, cB, cA, x1, y1, x2, y2, x3, y3, x4, y4, w) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.strokeStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.lineWidth = w;" +
+            "g.beginPath();" +
+            "g.moveTo(x1, y1);" +
+            "g.bezierCurveTo(x2, y2, x3, y3, x4, y4);" +
+            "g.stroke();" +
+        "}")(_g, r, g, b, a, x1, y1, x2, y2, x3, y3, x4, y4, w);
+    };
+
+    clearCubicBezier: fun = (x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, x4: f32, y4: f32, w: f32) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawCubicBezier(0u8, 0u8, 0u8, 255u8, x1, y1, x2, y2, x3, y3, x4, y4, w);
+        _setCompositeOpDraw();
+    };
+
+    drawText: fun = (text: str, fontFamily: str, r: u8, g: u8, b: u8, a: u8, x: f32, y: f32, textAlignment: TextAlignment, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, text, fontFamily, cR, cG, cB, cA, x, y, textAlignment, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.font = `${h}px ${fontFamily}`;" +
+            "g.fillStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.textAlign = textAlignment;" +
+            "g.fillText(text, x, y + h);" +
+        "}")(_g, text, fontFamily, r, g, b, a, x, y, textAlignment, h);
+        t._reset(_g);
+    };
+
+    clearText: fun = (text: str, fontFamily: str, x: f32, y: f32, textAlignment: TextAlignment, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawText(text, fontFamily, 0u8, 0u8, 0u8, 255u8, x, y, textAlignment, h, t);
+        _setCompositeOpDraw();
+    };
+
+    clear: fun = (r: u8, g: u8, b: u8, a: u8) {
+        drawRect(r, g, b, a, 0f32, 0f32, f32~width(), f32~height(), Transform());
+    };
+
+};
+
+jsFun("() => { observedCanvasIDs = []; }")();
+
+CanvasSurface: fun = (canvasElementId: str) -> Surface {
+    canvas: JsRef = JsRef();
+    g: JsRef = JsRef();
+    jsFun("(canvasId, canvasRef) => { setJsRef(canvasRef, document.getElementById(canvasId)); }")(canvasElementId, canvas);
+    jsFun("(canvasRef, gRef) => { setJsRef(gRef, getJsRef(canvasRef).getContext(\"2d\")); }")(canvas, g);
+    jsFun("(canvasId, canvasRef) => {" +
+        "if(observedCanvasIDs.includes(canvasId)) return;" +
+        "observedCanvasIDs.push(canvasId);" +
+        "const canvas = getJsRef(canvasRef);" +
+        "canvas.width = canvas.offsetWidth;" +
+        "canvas.height = canvas.offsetHeight;" +
+        "new ResizeObserver(() => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }).observe(canvas);" +
+    "}")(canvasElementId, canvas);
+    -> Surface(canvas, g, false);
+};
+
+SizedSurface: fun = (width: u64, height: u64) -> Surface {
+    canvas: JsRef = JsRef();
+    g: JsRef = JsRef();
+    jsFun("(canvasRef, width, height, gRef) => {" +
+        "const canvas = document.createElement(\"canvas\");" +
+        "canvas.width = Number(width);" +
+        "canvas.height = Number(height);" +
+        "setJsRef(canvasRef, canvas);" +
+        "setJsRef(gRef, canvas.getContext(\"2d\"));" +
+    "}")(canvas, width, height, g);
+    -> Surface(canvas, g, false);
+};
+
+ImageSurface: fun = (imageUrl: str) -> Surface {
+    image: JsRef = JsRef();
+    jsFun("(imgRef, imgUrl) => {" +
+        "const img = new Image();" +
+        "img.src = imgUrl;" +
+        "setJsRef(imgRef, img);" +
+    "}")(image, imageUrl);
+    -> Surface(image, JsRef(), true);
+};
+
+
+
+
+// "src/input/pointer.crn"
+
+MouseButton: type = u8;
+
+LeftMouseButton: MouseButton = 0u8;
+ScrollWheelMouseButton: MouseButton = 1u8;
+RightMouseButton: MouseButton = 2u8;
+
+
+Pointer: type = $(elementId: str) {
+
+    _isMouse: bool = true;
+
+    _mouseX: f32 = 0f32;
+    _mouseY: f32 = 0f32;
+    _mouseButtons: arr = [bool: 3u64: false];
+
+    _onMouseMove: fun = (x: f32, y: f32) {
+        _isMouse = true;
+        _mouseX = x;
+        _mouseY = y;
+    };
+
+    _onMouseButton: fun = (button: u64, state: bool) {
+        _isMouse = true;
+        if(button > 3u64, ^{->});
+        _mouseButtons[button] = state;
+    };
+
+    jsFun("(elementId, onMouseMove, onMouseButton) => {" +
+        "const element = (elementId.length === 0)? document : document.getElementById(elementId);" +
+        "element.addEventListener(\"contextmenu\", (e) => {" +
+            "e.preventDefault();" +
+        "});" +
+        "element.addEventListener(\"mousedown\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "onMouseMove(currantCreateF32(e.clientX), currantCreateF32(e.clientY));" +
+            "onMouseButton(currantCreateU64(e.button), currantCreateBool(true));" +
+        "});" +
+        "element.addEventListener(\"mouseup\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "onMouseMove(currantCreateF32(e.clientX), currantCreateF32(e.clientY));" +
+            "onMouseButton(currantCreateU64(e.button), currantCreateBool(false));" +
+        "});" +
+        "element.addEventListener(\"mousemove\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "onMouseMove(currantCreateF32(e.clientX), currantCreateF32(e.clientY));" +
+        "});" +
+    "}")(elementId, _onMouseMove, _onMouseButton);
+
+    isMouse: fun = () -> bool {
+        -> _isMouse;
+    };
+
+    pressing: fun = (button: MouseButton) -> bool {
+        -> _mouseButtons[u64~button];
+    };
+
+    mouseX: fun = () -> f32 {
+        -> _mouseX;
+    };
+
+    mouseY: fun = () -> f32 {
+        -> _mouseY;
+    };
+
+
+    _touchPositions: arr = [arr: 0u64: none];
+
+    _receiveTouches: fun = (count: u64) {
+        _isMouse = false;
+        _touchPositions = [arr: count: [f32: 0f32, 0f32]];
+    };
+
+    _receiveTouch: fun = (index: u64, x: f32, y: f32) {
+        _touchPositions[index][0u64] = x;
+        _touchPositions[index][1u64] = y;
+    };
+
+    jsFun("(elementId, receiveTouches, receiveTouch) => {" +
+        "const element = (elementId.length === 0)? document : document.getElementById(elementId);" +
+        "const sendTouches = (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "e = (typeof e.originalEvent === \"undefined\")? e : e.originalEvent;" +
+            "receiveTouches(currantCreateU64(e.touches.length));" +
+            "for(let touchIndex = 0; touchIndex < e.touches.length; touchIndex++) {" +
+                "receiveTouch(currantCreateU64(touchIndex), currantCreateF32(e.touches[touchIndex].pageX), currantCreateF32(e.touches[touchIndex].pageY));" +
+            "}" +
+        "};" +
+        "element.addEventListener(\"touchstart\", sendTouches);" +
+        "element.addEventListener(\"touchend\", sendTouches);" +
+        "element.addEventListener(\"touchmove\", sendTouches);" +
+    "}")(elementId, _receiveTouches, _receiveTouch);
+
+    isTouch: fun = () -> bool {
+        -> !_isMouse;
+    };
+
+    touches: fun = () -> arr { // [arr: [f32: x, y], ...]
+        -> _touchPositions;
+    };
+
+};
+
+DocumentPointer: fun = () -> Pointer {
+    -> Pointer("");
+};
+
+
+
+
+// "src/input/keyboard.crn"
+
+Key: type = u8;
+
+
+CtrlKey: Key = 0u8;
+ShiftKey: Key = 1u8;
+SpaceKey: Key = 2u8;
+BackspaceKey: Key = 3u8;
+EnterKey: Key = 4u8;
+AltKey: Key = 5u8;
+AKey: Key = 6u8;
+BKey: Key = 7u8;
+CKey: Key = 8u8;
+DKey: Key = 9u8;
+EKey: Key = 10u8;
+FKey: Key = 11u8;
+GKey: Key = 12u8;
+HKey: Key = 13u8;
+IKey: Key = 14u8;
+JKey: Key = 15u8;
+KKey: Key = 16u8;
+LKey: Key = 17u8;
+MKey: Key = 18u8;
+NKey: Key = 19u8;
+OKey: Key = 20u8;
+PKey: Key = 21u8;
+QKey: Key = 22u8;
+RKey: Key = 23u8;
+SKey: Key = 24u8;
+TKey: Key = 25u8;
+UKey: Key = 26u8;
+VKey: Key = 27u8;
+WKey: Key = 28u8;
+XKey: Key = 29u8;
+YKey: Key = 30u8;
+ZKey: Key = 31u8;
+UpArrowKey: Key = 32u8;
+DownArrowKey: Key = 33u8;
+LeftArrowKey: Key = 34u8;
+RightArrowKey: Key = 35u8;
+0Key: Key = 36u8;
+1Key: Key = 37u8;
+2Key: Key = 38u8;
+3Key: Key = 39u8;
+4Key: Key = 40u8;
+5Key: Key = 41u8;
+6Key: Key = 42u8;
+7Key: Key = 43u8;
+8Key: Key = 44u8;
+9Key: Key = 45u8;
+F1Key: Key = 46u8;
+F2Key: Key = 47u8;
+F3Key: Key = 48u8;
+F4Key: Key = 49u8;
+F5Key: Key = 50u8;
+F6Key: Key = 51u8;
+F7Key: Key = 52u8;
+F8Key: Key = 53u8;
+F9Key: Key = 54u8;
+F10Key: Key = 55u8;
+F11Key: Key = 56u8;
+F12Key: Key = 57u8;
+EscapeKey: Key = 58u8;
+
+Keyboard: type = $(elementId: str) {
+
+    _UnknownKey: Key = 59u8;
+    _keyFromCode: fun = (code: str) -> Key {
+        if(code == "ControlLeft" || code == "ControlRight", ^{-> CtrlKey});
+        if(code == "ShiftLeft" || code == "ShiftRight", ^{-> ShiftKey});
+        if(code == "Space", ^{-> SpaceKey});
+        if(code == "Backspace", ^{-> BackspaceKey});
+        if(code == "Enter", ^{-> EnterKey});
+        if(code == "AltLeft" || code == "AltRight", ^{-> AltKey});
+        if(code == "KeyA", ^{-> AKey});
+        if(code == "KeyB", ^{-> BKey});
+        if(code == "KeyC", ^{-> CKey});
+        if(code == "KeyD", ^{-> DKey});
+        if(code == "KeyE", ^{-> EKey});
+        if(code == "KeyF", ^{-> FKey});
+        if(code == "KeyG", ^{-> GKey});
+        if(code == "KeyH", ^{-> HKey});
+        if(code == "KeyI", ^{-> IKey});
+        if(code == "KeyJ", ^{-> JKey});
+        if(code == "KeyK", ^{-> KKey});
+        if(code == "KeyL", ^{-> LKey});
+        if(code == "KeyM", ^{-> MKey});
+        if(code == "KeyN", ^{-> NKey});
+        if(code == "KeyO", ^{-> OKey});
+        if(code == "KeyP", ^{-> PKey});
+        if(code == "KeyQ", ^{-> QKey});
+        if(code == "KeyR", ^{-> RKey});
+        if(code == "KeyS", ^{-> SKey});
+        if(code == "KeyT", ^{-> TKey});
+        if(code == "KeyU", ^{-> UKey});
+        if(code == "KeyV", ^{-> VKey});
+        if(code == "KeyW", ^{-> WKey});
+        if(code == "KeyX", ^{-> XKey});
+        if(code == "KeyY", ^{-> YKey});
+        if(code == "KeyZ", ^{-> ZKey});
+        if(code == "ArrowUp", ^{-> UpArrowKey});
+        if(code == "ArrowDown", ^{-> DownArrowKey});
+        if(code == "ArrowLeft", ^{-> LeftArrowKey});
+        if(code == "ArrowRight", ^{-> RightArrowKey});
+        if(code == "Digit0", ^{-> 0Key});
+        if(code == "Digit1", ^{-> 1Key});
+        if(code == "Digit2", ^{-> 2Key});
+        if(code == "Digit3", ^{-> 3Key});
+        if(code == "Digit4", ^{-> 4Key});
+        if(code == "Digit5", ^{-> 5Key});
+        if(code == "Digit6", ^{-> 6Key});
+        if(code == "Digit7", ^{-> 7Key});
+        if(code == "Digit8", ^{-> 8Key});
+        if(code == "Digit9", ^{-> 9Key});
+        if(code == "F1", ^{-> F1Key});
+        if(code == "F2", ^{-> F2Key});
+        if(code == "F3", ^{-> F3Key});
+        if(code == "F4", ^{-> F4Key});
+        if(code == "F5", ^{-> F5Key});
+        if(code == "F6", ^{-> F6Key});
+        if(code == "F7", ^{-> F7Key});
+        if(code == "F8", ^{-> F8Key});
+        if(code == "F9", ^{-> F9Key});
+        if(code == "F10", ^{-> F10Key});
+        if(code == "F11", ^{-> F11Key});
+        if(code == "F12", ^{-> F12Key});
+        if(code == "Escape", ^{-> EscapeKey});
+        -> _UnknownKey;
+    };
+
+    _keys: arr = [bool: 60u64: false];
+
+    _changeKey: fun = (code: str, state: bool) {
+        _keys[u64~_keyFromCode(code)] = state;
+    };
+
+    jsFun("(elementId, changeKey) => {" +
+        "const element = (elementId.length === 0)? document : document.getElementById(elementId);" +
+        "element.addEventListener(\"keydown\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "changeKey(currantCreateStr(e.code), currantCreateBool(true));" +
+        "});" +
+        "element.addEventListener(\"keyup\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "changeKey(currantCreateStr(e.code), currantCreateBool(false));" +
+        "});" +
+    "}")(elementId, _changeKey);
+
+    pressing: fun = (key: Key) -> bool {
+        -> _keys[u64~key];
+    };
+
+};
+
+DocumentKeyboard: fun = () -> Keyboard {
+    -> Keyboard("");
+};
+
+
+
+
+// "src/audio/audio.crn"
+
+_bAudioContext: JsRef = JsRef();
+jsFun("(audioRef) => { setJsRef(audioRef, new (window.AudioContext || window.webkitAudioContext)()); }")(_bAudioContext);
+
+Audio: type = $(audioUrl: str) {
+
+    loaded: bool = false;
+    onLoad: fun = {};
+
+    _audio: JsRef = JsRef();
+
+    _internalOnLoad: fun = {
+        loaded = true;
+        onLoad();
+    };
+
+    jsFun("(audioContextRef, audioUrl, audioRef, onLoad) => {" +
+        "fetch(audioUrl)" +
+                ".then(response => response.arrayBuffer())" +
+                ".then(responseBuffer => getJsRef(audioContextRef).decodeAudioData(responseBuffer))" +
+                ".then(audioBuffer => {" +
+                    "setJsRef(audioRef, audioBuffer);" +
+                    "onLoad();" +
+                "});" +
+    "}")(_bAudioContext, audioUrl, _audio, _internalOnLoad);
+
+};
+
+
+
+// "src/audio/audio_source.crn"
+
+AudioSource: type = $() {
+
+    _sourceNode: JsRef = JsRef();
+    _gainNode: JsRef = JsRef();
+    _pannerNode: JsRef = JsRef();
+
+    jsFun("(audioRef, gainNodeRef, pannerNodeRef) => {" +
+        "const audio = getJsRef(audioRef);" +
+        "const gainNode = audio.createGain();" +
+        "const pannerNode = audio.createPanner();" +
+        "pannerNode.panningModel = \"HRTF\";" +
+        "pannerNode.distanceModel = \"exponential\";" +
+        "gainNode.connect(pannerNode);" +
+        "pannerNode.connect(audio.destination);" +
+        "setJsRef(gainNodeRef, gainNode);" +
+        "setJsRef(pannerNodeRef, pannerNode);" +
+    "}")(_bAudioContext, _gainNode, _pannerNode);
+
+    _pitch: f32 = 1f32;
+    _looping: bool = false;
+    _playing: bool = false;
+
+    _internalOnEnd: fun = {
+        _playing = _looping;
+    };
+
+    play: fun = (audio: Audio) {
+        if(!audio.loaded, ^{->});
+        jsFun("(audioRef, sourceNodeRef, srcRef, pitch, looping, onEnd, gainNodeRef) => {" +
+            "const audio = getJsRef(audioRef);" +
+            "const sourceNode = audio.createBufferSource();" +
+            "sourceNode.buffer = getJsRef(srcRef);" +
+            "sourceNode.playbackRate.value = pitch;" +
+            "sourceNode.loop = looping;" +
+            "sourceNode.onended = () => { onEnd(); };" +
+            "sourceNode.connect(getJsRef(gainNodeRef));" +
+            "sourceNode.start();" +
+            "setJsRef(sourceNodeRef, sourceNode);" +
+        "}")(_bAudioContext, _sourceNode, audio._audio, _pitch, _looping, _internalOnEnd, _gainNode);
+        _playing = true;
+    };
+
+    stop: fun = {
+        if(!_playing, ^{->});
+        jsFun("(sourceNodeRef) => { getJsRef(sourceNodeRef).stop(); }")(_sourceNode);
+        _playing = false;
+    };
+
+    repeat: fun = (doRepeat: bool) {
+        _looping = doRepeat;
+        if(!_playing, ^{->});
+        jsFun("(sourceNodeRef, repeat) => { getJsRef(sourceNodeRef).loop = repeat; }")(_sourceNode, _looping);
+    };
+
+    playing: fun = () -> bool {
+        -> _playing;
+    };
+
+    setPosition: fun = (x: f32, y: f32, z: f32) {
+        jsFun("(pannerNodeRef, x, y, z) => {" +
+            "const pannerNode = getJsRef(pannerNodeRef);" +
+            "pannerNode.positionX.value = x;" +
+            "pannerNode.positionY.value = y;" +
+            "pannerNode.positionZ.value = z;" +
+        "}")(_pannerNode, x, y, z);
+    };
+
+    setVolume: fun = (volume: f32) {
+        jsFun("(gainNodeRef, gain) => { getJsRef(gainNodeRef).gain.value = gain; }")(_gainNode, volume);
+    };
+
+    setPitch: fun = (pitch: f32) {
+        _pitch = pitch;
+        if(!_playing, ^{->});
+        jsFun("(sourceNodeRef, pitch) => { getJsRef(sourceNodeRef).playbackRate.value = pitch; }")(_sourceNode, pitch);
+    };
+
+};
+
+
+
+// "src/audio/audio_listener.crn"
+
+AudioListenerFunctions: type = $() {
+
+    setPosition: fun = (x: f32, y: f32, z: f32) {
+        jsFun("(audioRef, x, y, z) => {" +
+            "const listener = getJsRef(audioRef).listener;" +
+            "if(\"positionX\" in listener && \"positionY\" in listener && \"positionZ\" in listener) {" +
+                "listener.positionX.value = x;" +
+                "listener.positionY.value = y;" +
+                "listener.positionZ.value = z;" +
+            "} else listener.setPosition(x, y, z);" +
+        "}")(_bAudioContext, x, y, z);
+    };
+
+    setOrientation: fun = (lookX: f32, lookY: f32, lookZ: f32, upX: f32, upY: f32, upZ: f32) {
+        jsFun("(audioRef, lookX, lookY, lookZ, upX, upY, upZ) => {" +
+            "const listener = getJsRef(audioRef).listener;" +
+            "if(\"forwardX\" in listener && \"forwardY\" in listener && \"forwardZ\" in listener && \"upX\" in listener && \"upY\" in listener && \"upZ\" in listener) {" +
+                "listener.forwardX.value = lookX;" +
+                "listener.forwardY.value = lookY;" +
+                "listener.forwardZ.value = lookZ;" +
+                "listener.upX.value = upX;" +
+                "listener.upY.value = upY;" +
+                "listener.upZ.value = upZ;" +
+            "} else listener.setOrientation(lookX, lookY, lookZ, upX, upY, upZ);" +
+        "}")(_bAudioContext, lookX, lookY, lookZ, upX, upY, upZ);
+    };
+
+};
+
+AudioListener: AudioListenerFunctions = AudioListenerFunctions();
+
+
+
+// "src/gameloop.crn"
+
+GameloopFunctions: type = $() {
+
+    _handler: fun = {};
+    running: bool = false;
+
+    _requestAnimationFrame: fun = jsFun("(callback) => { requestAnimationFrame((timestamp) => { callback(currantCreateU64(Math.floor(timestamp * 1000))); }); }");
+
+    start: fun = (frameCallback: fun) {
+        _handler = frameCallback;
+        if(!running, {
+            _requestAnimationFrame(_internalHandler);
+        });
+        running = true;
+    };
+
+    _lastTimestamp: u64 = 0u64;
+    _deltaTime: f64 = 0f64;
+
+    _internalHandler: fun = (timestamp: u64) {
+        if(!running, ^{->});
+        if(_lastTimestamp != 0u64, {
+            _deltaTime = f64~(timestamp - _lastTimestamp) / 1000f64 / 1000f64;
+        });
+        _lastTimestamp = timestamp;
+        _handler();
+        _requestAnimationFrame(_internalHandler);
+    };
+
+    deltaTime: fun = () -> f64 {
+        -> _deltaTime;
+    };
+
+    stop: fun = {
+        running = false;
+    };
+
+};
+
+Gameloop: GameloopFunctions = GameloopFunctions();
+
+

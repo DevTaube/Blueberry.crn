@@ -1,0 +1,106 @@
+
+MouseButton: type = u8;
+
+LeftMouseButton: MouseButton = 0u8;
+ScrollWheelMouseButton: MouseButton = 1u8;
+RightMouseButton: MouseButton = 2u8;
+
+
+Pointer: type = $(elementId: str) {
+
+    _isMouse: bool = true;
+
+    _mouseX: f32 = 0f32;
+    _mouseY: f32 = 0f32;
+    _mouseButtons: arr = [bool: 3u64: false];
+
+    _onMouseMove: fun = (x: f32, y: f32) {
+        _isMouse = true;
+        _mouseX = x;
+        _mouseY = y;
+    };
+
+    _onMouseButton: fun = (button: u64, state: bool) {
+        _isMouse = true;
+        if(button > 3u64, ^{->});
+        _mouseButtons[button] = state;
+    };
+
+    jsFun("(elementId, onMouseMove, onMouseButton) => {" +
+        "const element = (elementId.length === 0)? document : document.getElementById(elementId);" +
+        "element.addEventListener(\"contextmenu\", (e) => {" +
+            "e.preventDefault();" +
+        "});" +
+        "element.addEventListener(\"mousedown\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "onMouseMove(currantCreateF32(e.clientX), currantCreateF32(e.clientY));" +
+            "onMouseButton(currantCreateU64(e.button), currantCreateBool(true));" +
+        "});" +
+        "element.addEventListener(\"mouseup\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "onMouseMove(currantCreateF32(e.clientX), currantCreateF32(e.clientY));" +
+            "onMouseButton(currantCreateU64(e.button), currantCreateBool(false));" +
+        "});" +
+        "element.addEventListener(\"mousemove\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "onMouseMove(currantCreateF32(e.clientX), currantCreateF32(e.clientY));" +
+        "});" +
+    "}")(elementId, _onMouseMove, _onMouseButton);
+
+    isMouse: fun = () -> bool {
+        -> _isMouse;
+    };
+
+    pressing: fun = (button: MouseButton) -> bool {
+        -> _mouseButtons[u64~button];
+    };
+
+    mouseX: fun = () -> f32 {
+        -> _mouseX;
+    };
+
+    mouseY: fun = () -> f32 {
+        -> _mouseY;
+    };
+
+
+    _touchPositions: arr = [arr: 0u64: none];
+
+    _receiveTouches: fun = (count: u64) {
+        _isMouse = false;
+        _touchPositions = [arr: count: [f32: 0f32, 0f32]];
+    };
+
+    _receiveTouch: fun = (index: u64, x: f32, y: f32) {
+        _touchPositions[index][0u64] = x;
+        _touchPositions[index][1u64] = y;
+    };
+
+    jsFun("(elementId, receiveTouches, receiveTouch) => {" +
+        "const element = (elementId.length === 0)? document : document.getElementById(elementId);" +
+        "const sendTouches = (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "e = (typeof e.originalEvent === \"undefined\")? e : e.originalEvent;" +
+            "receiveTouches(currantCreateU64(e.touches.length));" +
+            "for(let touchIndex = 0; touchIndex < e.touches.length; touchIndex++) {" +
+                "receiveTouch(currantCreateU64(touchIndex), currantCreateF32(e.touches[touchIndex].pageX), currantCreateF32(e.touches[touchIndex].pageY));" +
+            "}" +
+        "};" +
+        "element.addEventListener(\"touchstart\", sendTouches);" +
+        "element.addEventListener(\"touchend\", sendTouches);" +
+        "element.addEventListener(\"touchmove\", sendTouches);" +
+    "}")(elementId, _receiveTouches, _receiveTouch);
+
+    isTouch: fun = () -> bool {
+        -> !_isMouse;
+    };
+
+    touches: fun = () -> arr { // [arr: [f32: x, y], ...]
+        -> _touchPositions;
+    };
+
+};
+
+DocumentPointer: fun = () -> Pointer {
+    -> Pointer("");
+};

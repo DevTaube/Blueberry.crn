@@ -1,0 +1,6 @@
+
+TextAlignment: type = str;
+
+TextLeft: TextAlignment = "right";
+TextCenter: TextAlignment = "center";
+TextRight: TextAlignment = "left";

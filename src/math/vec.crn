@@ -1,0 +1,166 @@
+
+vec2: type = $(x: f32, y: f32) {};
+
+vec3: type = $(x: f32, y: f32, z: f32) {};
+
+vec4: type = $(x: f32, y: f32, z: f32, w: f32) {};
+
+
+VecFunctions: type = $() {
+
+    _stdLen: fun = len;
+
+    isVec: fun = (val: ?) -> bool {
+        if(#val == vec2, ^{-> true});
+        if(#val == vec3, ^{-> true});
+        if(#val == vec4, ^{-> true});
+        -> false;
+    };
+
+    toArray: fun = (vec: ? => isVec(vec)) -> arr {
+        if(#vec == vec2, ^{-> [f32: vec.x, vec.y]});
+        if(#vec == vec3, ^{-> [f32: vec.x, vec.y, vec.z]});
+        if(#vec == vec4, ^{-> [f32: vec.x, vec.y, vec.z, vec.w]});
+    };
+
+    fromArray: fun = (values: arr => Array.itemType(values) == f32, vecType: type) -> vecType {
+        if(_stdLen(values) == 2u64, ^{-> vec2(values[0u64], values[1u64])});
+        if(_stdLen(values) == 3u64, ^{-> vec3(values[0u64], values[1u64], values[2u64])});
+        if(_stdLen(values) == 4u64, ^{-> vec4(values[0u64], values[1u64], values[2u64], values[3u64])});
+    };
+
+    // component-wise math operations
+
+    abs: fun = (x: ? => isVec(x)) -> #x {
+        values: arr = toArray(x);
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            values[i] = Math.abs(values[i]);
+            -> cont;
+        });
+        -> fromArray(values, #x);
+    };
+
+    add: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] + bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    sub: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] - bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    mul: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] * bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    div: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = aValues[i] / bValues[i];
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    min: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = Math.min(aValues[i], bValues[i]);
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    max: fun = (a: ? => isVec(a), b: #a) -> #a {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        rValues: arr = [f32: _stdLen(aValues): 0f32];
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            rValues[i] = Math.max(aValues[i], bValues[i]);
+            -> cont;
+        });
+        -> fromArray(rValues, #a);
+    };
+
+    // operations on this vector
+
+    len: fun = (x: ? => isVec(x)) -> f32 {
+        values: arr = toArray(x);
+        squareSum: f32 = 0f32;
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            squareSum = squareSum + (values[i] * values[i]);
+            -> cont;
+        });
+        -> Math.sqrt(squareSum);
+    };
+
+    neg: fun = (x: ? => isVec(x)) -> #x {
+        values: arr = toArray(x);
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            values[i] = values[i] * -1f32;
+            -> cont;
+        });
+        -> fromArray(values, #x);
+    };
+
+    scale: fun = (x: ? => isVec(x), f: f32) -> #x {
+        values: arr = toArray(x);
+        for(range(0u64, _stdLen(values)), (i: u64) -> lpa {
+            values[i] = values[i] * f;
+            -> cont;
+        });
+        -> fromArray(values, #x);
+    };
+
+    normal: fun = (x: ? => isVec(x)) -> #x {
+        -> scale(x, 1f32 / len(x));
+    };
+
+    // operations on this and another vector
+
+    dist: fun = (a: ? => isVec(a), b: #a) -> f32 {
+        -> len(sub(a, b));
+    };
+
+    dot: fun = (a: ? => isVec(a), b: #a) -> f32 {
+        aValues: arr = toArray(a);
+        bValues: arr = toArray(b);
+        dotProduct: f32 = 0f32;
+        for(range(0u64, _stdLen(aValues)), (i: u64) -> lpa {
+            dotProduct = dotProduct + aValues[i] * bValues[i];
+            -> cont;
+        });
+        -> dotProduct;
+    };
+
+    angle: fun = (a: ? => isVec(a), b: #a) -> f32 {
+        -> Math.acos(dot(a, b) / (len(a) * len(b)));
+    };
+
+};
+
+Vec: VecFunctions = VecFunctions();

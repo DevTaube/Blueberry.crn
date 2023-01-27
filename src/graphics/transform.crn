@@ -1,0 +1,35 @@
+
+Transform: type = $() {
+
+    actions: arr = [fun: 0u64: none];
+
+    _createTransform: fun = (newActions: arr) -> Transform {
+        result: Transform = Transform();
+        result.actions = newActions;
+        -> result;
+    };
+
+    _apply: fun = (g: JsRef) {
+        for(actions, (action: fun) -> lpa {
+            action(g);
+            -> cont;
+        });
+    };
+
+    _reset: fun = (g: JsRef) {
+        jsFun("(gRef) => { getJsRef(gRef).resetTransform(); }")(g);
+    };
+
+    translate: fun = (x: f32, y: f32) -> Transform {
+        -> _createTransform(Array.add(actions, (g: JsRef) { jsFun("(gRef, x, y) => { getJsRef(gRef).translate(x, y); }")(g, x, y); }));
+    };
+
+    rotate: fun = (radians: f32) -> Transform {
+        -> _createTransform(Array.add(actions, (g: JsRef) { jsFun("(gRef, rad) => { getJsRef(gRef).rotate(rad); }")(g, radians); }));
+    };
+
+    rotateAround: fun = (radians: f32, x: f32, y: f32) -> Transform {
+        -> translate(x, y).rotate(radians).translate(0f32 - x, 0f32 - y);
+    };
+
+};

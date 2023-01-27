@@ -1,0 +1,157 @@
+
+Key: type = u8;
+
+
+CtrlKey: Key = 0u8;
+ShiftKey: Key = 1u8;
+SpaceKey: Key = 2u8;
+BackspaceKey: Key = 3u8;
+EnterKey: Key = 4u8;
+AltKey: Key = 5u8;
+AKey: Key = 6u8;
+BKey: Key = 7u8;
+CKey: Key = 8u8;
+DKey: Key = 9u8;
+EKey: Key = 10u8;
+FKey: Key = 11u8;
+GKey: Key = 12u8;
+HKey: Key = 13u8;
+IKey: Key = 14u8;
+JKey: Key = 15u8;
+KKey: Key = 16u8;
+LKey: Key = 17u8;
+MKey: Key = 18u8;
+NKey: Key = 19u8;
+OKey: Key = 20u8;
+PKey: Key = 21u8;
+QKey: Key = 22u8;
+RKey: Key = 23u8;
+SKey: Key = 24u8;
+TKey: Key = 25u8;
+UKey: Key = 26u8;
+VKey: Key = 27u8;
+WKey: Key = 28u8;
+XKey: Key = 29u8;
+YKey: Key = 30u8;
+ZKey: Key = 31u8;
+UpArrowKey: Key = 32u8;
+DownArrowKey: Key = 33u8;
+LeftArrowKey: Key = 34u8;
+RightArrowKey: Key = 35u8;
+0Key: Key = 36u8;
+1Key: Key = 37u8;
+2Key: Key = 38u8;
+3Key: Key = 39u8;
+4Key: Key = 40u8;
+5Key: Key = 41u8;
+6Key: Key = 42u8;
+7Key: Key = 43u8;
+8Key: Key = 44u8;
+9Key: Key = 45u8;
+F1Key: Key = 46u8;
+F2Key: Key = 47u8;
+F3Key: Key = 48u8;
+F4Key: Key = 49u8;
+F5Key: Key = 50u8;
+F6Key: Key = 51u8;
+F7Key: Key = 52u8;
+F8Key: Key = 53u8;
+F9Key: Key = 54u8;
+F10Key: Key = 55u8;
+F11Key: Key = 56u8;
+F12Key: Key = 57u8;
+EscapeKey: Key = 58u8;
+
+Keyboard: type = $(elementId: str) {
+
+    _UnknownKey: Key = 59u8;
+    _keyFromCode: fun = (code: str) -> Key {
+        if(code == "ControlLeft" || code == "ControlRight", ^{-> CtrlKey});
+        if(code == "ShiftLeft" || code == "ShiftRight", ^{-> ShiftKey});
+        if(code == "Space", ^{-> SpaceKey});
+        if(code == "Backspace", ^{-> BackspaceKey});
+        if(code == "Enter", ^{-> EnterKey});
+        if(code == "AltLeft" || code == "AltRight", ^{-> AltKey});
+        if(code == "KeyA", ^{-> AKey});
+        if(code == "KeyB", ^{-> BKey});
+        if(code == "KeyC", ^{-> CKey});
+        if(code == "KeyD", ^{-> DKey});
+        if(code == "KeyE", ^{-> EKey});
+        if(code == "KeyF", ^{-> FKey});
+        if(code == "KeyG", ^{-> GKey});
+        if(code == "KeyH", ^{-> HKey});
+        if(code == "KeyI", ^{-> IKey});
+        if(code == "KeyJ", ^{-> JKey});
+        if(code == "KeyK", ^{-> KKey});
+        if(code == "KeyL", ^{-> LKey});
+        if(code == "KeyM", ^{-> MKey});
+        if(code == "KeyN", ^{-> NKey});
+        if(code == "KeyO", ^{-> OKey});
+        if(code == "KeyP", ^{-> PKey});
+        if(code == "KeyQ", ^{-> QKey});
+        if(code == "KeyR", ^{-> RKey});
+        if(code == "KeyS", ^{-> SKey});
+        if(code == "KeyT", ^{-> TKey});
+        if(code == "KeyU", ^{-> UKey});
+        if(code == "KeyV", ^{-> VKey});
+        if(code == "KeyW", ^{-> WKey});
+        if(code == "KeyX", ^{-> XKey});
+        if(code == "KeyY", ^{-> YKey});
+        if(code == "KeyZ", ^{-> ZKey});
+        if(code == "ArrowUp", ^{-> UpArrowKey});
+        if(code == "ArrowDown", ^{-> DownArrowKey});
+        if(code == "ArrowLeft", ^{-> LeftArrowKey});
+        if(code == "ArrowRight", ^{-> RightArrowKey});
+        if(code == "Digit0", ^{-> 0Key});
+        if(code == "Digit1", ^{-> 1Key});
+        if(code == "Digit2", ^{-> 2Key});
+        if(code == "Digit3", ^{-> 3Key});
+        if(code == "Digit4", ^{-> 4Key});
+        if(code == "Digit5", ^{-> 5Key});
+        if(code == "Digit6", ^{-> 6Key});
+        if(code == "Digit7", ^{-> 7Key});
+        if(code == "Digit8", ^{-> 8Key});
+        if(code == "Digit9", ^{-> 9Key});
+        if(code == "F1", ^{-> F1Key});
+        if(code == "F2", ^{-> F2Key});
+        if(code == "F3", ^{-> F3Key});
+        if(code == "F4", ^{-> F4Key});
+        if(code == "F5", ^{-> F5Key});
+        if(code == "F6", ^{-> F6Key});
+        if(code == "F7", ^{-> F7Key});
+        if(code == "F8", ^{-> F8Key});
+        if(code == "F9", ^{-> F9Key});
+        if(code == "F10", ^{-> F10Key});
+        if(code == "F11", ^{-> F11Key});
+        if(code == "F12", ^{-> F12Key});
+        if(code == "Escape", ^{-> EscapeKey});
+        -> _UnknownKey;
+    };
+
+    _keys: arr = [bool: 60u64: false];
+
+    _changeKey: fun = (code: str, state: bool) {
+        _keys[u64~_keyFromCode(code)] = state;
+    };
+
+    jsFun("(elementId, changeKey) => {" +
+        "const element = (elementId.length === 0)? document : document.getElementById(elementId);" +
+        "element.addEventListener(\"keydown\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "changeKey(currantCreateStr(e.code), currantCreateBool(true));" +
+        "});" +
+        "element.addEventListener(\"keyup\", (e) => {" +
+            "if(typeof e !== \"object\") return;" +
+            "changeKey(currantCreateStr(e.code), currantCreateBool(false));" +
+        "});" +
+    "}")(elementId, _changeKey);
+
+    pressing: fun = (key: Key) -> bool {
+        -> _keys[u64~key];
+    };
+
+};
+
+DocumentKeyboard: fun = () -> Keyboard {
+    -> Keyboard("");
+};

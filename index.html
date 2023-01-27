@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="currant.js"></script>
+        <currant-script src="blueberry.crn"></currant-script>
+        <currant-script>
+            canvas: Surface = CanvasSurface("canvas");
+            pointer: Pointer = DocumentPointer();
+            keyboard: Keyboard = DocumentKeyboard();
+
+            amongus: Audio = Audio("amogus.wav");
+            amongusSource: AudioSource = AudioSource();
+            amongusSource.repeat(true);
+            amongusSource.setVolume(10f32);
+
+            x: f32 = 0f32;
+            y: f32 = 0f32;
+
+            Gameloop.start({
+
+                x = x + 100f32 * f32~Gameloop.deltaTime();
+                y = y + 100f32 * f32~Gameloop.deltaTime();
+
+                if(keyboard.pressing(RKey), {
+                    x = 0f32;
+                    y = 0f32;
+                });
+
+                if(pointer.pressing(LeftMouseButton), {
+                    x = pointer.mouseX();
+                    y = pointer.mouseY();
+                    if(amongus.loaded && !amongusSource.playing(), { amongusSource.play(amongus); });
+                });
+
+                for(pointer.touches(), (touch: arr) -> lpa {
+                    x = touch[0u64];
+                    y = touch[1u64];
+                    if(amongus.loaded && !amongusSource.playing(), { amongusSource.play(amongus); });
+                    -> cont;
+                });
+
+                AudioListener.setPosition(
+                    f32~canvas.width() / 2f32,
+                    0f32,
+                    f32~canvas.height() / 2f32
+                );
+                amongusSource.setPosition(
+                    x,
+                    0f32,
+                    y
+                );
+
+                canvas.clear(15u8, 15u8, 15u8, 255u8);
+                canvas.drawRect(
+                    0u8, 255u8, 0u8, 255u8,
+                    x - 25f32, y - 25f32,
+                    50f32, 50f32,
+                    Transform().rotateAround(Math.rad((x + y) / 2f32), x, y)
+                );
+                canvas.drawOval(
+                    0u8, 0u8, 255u8, 255u8,
+                    f32~canvas.width() / 2f32 - 25f32, f32~canvas.height() / 2f32 - 25f32,
+                    50f32, 50f32,
+                    Transform()
+                );
+                canvas.drawLine(
+                    0u8, 0u8, 255u8, 255u8,
+                    f32~canvas.width() / 2f32, f32~canvas.height() / 2f32 - 100f32,
+                    f32~canvas.width() / 2f32, f32~canvas.height() / 2f32,
+                    5f32
+                );
+
+            });
+        </currant-script>
+    </head>
+    <body style="margin: 0; overflow: hidden; touch-action: none;">
+        <canvas id="canvas" style="width: 100vw; height: 100vh"></canvas>
+    </body>
+</html>

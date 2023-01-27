@@ -1,0 +1,222 @@
+
+Surface: type = $(_canvas: JsRef, _g: JsRef, _loading: bool) {
+
+    loaded: bool = !_loading;
+    onLoad: fun = {};
+
+    _onImageLoad: fun = {
+        img: JsRef = _canvas;
+        _canvas = JsRef();
+        width: u64 = jsFun("(imgRef) => currantCreateU64(getJsRef(imgRef).width)")(img);
+        height: u64 = jsFun("(imgRef) => currantCreateU64(getJsRef(imgRef).height)")(img);
+        newSurface: Surface = SizedSurface(width, height);
+        _canvas = newSurface._canvas;
+        _g = newSurface._g;
+        jsFun("(gRef, imgRef) => {" +
+            "getJsRef(gRef).drawImage(getJsRef(imgRef), 0, 0);" +
+        "}")(_g, img);
+        loaded = true;
+        onLoad();
+    };
+    if(_loading, {
+        jsFun("(imgRef, onLoad) => { getJsRef(imgRef).onload = () => { onLoad(); }; }")(_canvas, _onImageLoad);
+    });
+
+    width: fun = () -> u64 {
+        if(!loaded, ^{-> 0u64});
+        -> jsFun("(canvasRef) => currantCreateU64(getJsRef(canvasRef).width)")(_canvas);
+    };
+
+    height: fun = () -> u64 {
+        if(!loaded, ^{-> 0u64});
+        -> jsFun("(canvasRef) => currantCreateU64(getJsRef(canvasRef).height)")(_canvas);
+    };
+
+
+    _setCompositeOpClear: fun = {
+        jsFun("(gRef) => { getJsRef(gRef).globalCompositeOperation = \"destination-out\"; }")(_g);
+    };
+
+    _setCompositeOpDraw: fun = {
+        jsFun("(gRef) => { getJsRef(gRef).globalCompositeOperation = \"source-over\"; }")(_g);
+    };
+
+    drawSurface: fun = (src: Surface, a: u8, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        drawSubSurface(src, a, 0u64, 0u64, src.width(), src.height(), x, y, w, h, t);
+    };
+    drawSubSurface: fun = (src: Surface, a: u8, sX: u64, sY: u64, sW: u64, sH: u64, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        if(!src.loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, srcRef, a, sX, sY, sW, sH, x, y, w, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.globalAlpha = Number(a) / 255;" +
+            "g.drawImage(getJsRef(srcRef), Number(sX), Number(sY), Number(sW), Number(sH), x, y, w, h);" +
+        "}")(_g, src._canvas, a, sX, sY, sW, sH, x, y, w, h);
+        t._reset(_g);
+    };
+
+    drawRect: fun = (r: u8, g: u8, b: u8, a: u8, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, cR, cG, cB, cA, x, y, w, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.fillStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.fillRect(x, y, w, h);" +
+        "}")(_g, r, g, b, a, x, y, w, h);
+        t._reset(_g);
+    };
+
+    clearRect: fun = (x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawRect(0u8, 0u8, 0u8, 255u8, x, y, w, h, t);
+        _setCompositeOpDraw();
+    };
+
+    drawOval: fun = (r: u8, g: u8, b: u8, a: u8, x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, cR, cG, cB, cA, x, y, w, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.fillStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.beginPath();" +
+            "g.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 2 * Math.PI, false);" +
+            "g.fill();" +
+        "}")(_g, r, g, b, a, x, y, w, h);
+        t._reset(_g);
+    };
+
+    clearOval: fun = (x: f32, y: f32, w: f32, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawOval(0u8, 0u8, 0u8, 255u8, x, y, w, h, t);
+        _setCompositeOpDraw();
+    };
+
+    drawLine: fun = (r: u8, g: u8, b: u8, a: u8, x1: f32, y1: f32, x2: f32, y2: f32, w: f32) {
+        if(!loaded, ^{->});
+        jsFun("(gRef, cR, cG, cB, cA, x1, y1, x2, y2, w) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.strokeStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.lineWidth = w;" +
+            "g.beginPath();" +
+            "g.moveTo(x1, y1);" +
+            "g.lineTo(x2, y2);" +
+            "g.stroke();" +
+        "}")(_g, r, g, b, a, x1, y1, x2, y2, w);
+    };
+
+    clearLine: fun = (x1: f32, y1: f32, x2: f32, y2: f32, w: f32) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawLine(0u8, 0u8, 0u8, 255u8, x1, y1, x2, y2, w);
+        _setCompositeOpDraw();
+    };
+
+    drawQuadraticBezier: fun = (r: u8, g: u8, b: u8, a: u8, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, w: f32) {
+        if(!loaded, ^{->});
+        jsFun("(gRef, cR, cG, cB, cA, x1, y1, x2, y2, x3, y3, w) => {" +
+             "const g = getJsRef(gRef);" +
+             "g.strokeStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+             "g.lineWidth = w;" +
+             "g.beginPath();" +
+             "g.moveTo(x1, y1);" +
+             "g.quadraticCurveTo(x2, y2, x3, y3);" +
+             "g.stroke();" +
+        "}")(_g, r, g, b, a, x1, y1, x2, y2, x3, y3, w);
+    };
+
+    clearQuadraticBezier: fun = (x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, w: f32) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawQuadraticBezier(0u8, 0u8, 0u8, 255u8, x1, y1, x2, y2, x3, y3, w);
+        _setCompositeOpDraw();
+    };
+
+    drawCubicBezier: fun = (r: u8, g: u8, b: u8, a: u8, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, x4: f32, y4: f32, w: f32) {
+        if(!loaded, ^{->});
+        jsFun("(gRef, cR, cG, cB, cA, x1, y1, x2, y2, x3, y3, x4, y4, w) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.strokeStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.lineWidth = w;" +
+            "g.beginPath();" +
+            "g.moveTo(x1, y1);" +
+            "g.bezierCurveTo(x2, y2, x3, y3, x4, y4);" +
+            "g.stroke();" +
+        "}")(_g, r, g, b, a, x1, y1, x2, y2, x3, y3, x4, y4, w);
+    };
+
+    clearCubicBezier: fun = (x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, x4: f32, y4: f32, w: f32) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawCubicBezier(0u8, 0u8, 0u8, 255u8, x1, y1, x2, y2, x3, y3, x4, y4, w);
+        _setCompositeOpDraw();
+    };
+
+    drawText: fun = (text: str, fontFamily: str, r: u8, g: u8, b: u8, a: u8, x: f32, y: f32, textAlignment: TextAlignment, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        t._apply(_g);
+        jsFun("(gRef, text, fontFamily, cR, cG, cB, cA, x, y, textAlignment, h) => {" +
+            "const g = getJsRef(gRef);" +
+            "g.font = `${h}px ${fontFamily}`;" +
+            "g.fillStyle = `rgba(${Number(cR)}, ${Number(cG)}, ${Number(cB)}, ${(Number(cA) / 255)})`;" +
+            "g.textAlign = textAlignment;" +
+            "g.fillText(text, x, y + h);" +
+        "}")(_g, text, fontFamily, r, g, b, a, x, y, textAlignment, h);
+        t._reset(_g);
+    };
+
+    clearText: fun = (text: str, fontFamily: str, x: f32, y: f32, textAlignment: TextAlignment, h: f32, t: Transform) {
+        if(!loaded, ^{->});
+        _setCompositeOpClear();
+        drawText(text, fontFamily, 0u8, 0u8, 0u8, 255u8, x, y, textAlignment, h, t);
+        _setCompositeOpDraw();
+    };
+
+    clear: fun = (r: u8, g: u8, b: u8, a: u8) {
+        drawRect(r, g, b, a, 0f32, 0f32, f32~width(), f32~height(), Transform());
+    };
+
+};
+
+jsFun("() => { observedCanvasIDs = []; }")();
+
+CanvasSurface: fun = (canvasElementId: str) -> Surface {
+    canvas: JsRef = JsRef();
+    g: JsRef = JsRef();
+    jsFun("(canvasId, canvasRef) => { setJsRef(canvasRef, document.getElementById(canvasId)); }")(canvasElementId, canvas);
+    jsFun("(canvasRef, gRef) => { setJsRef(gRef, getJsRef(canvasRef).getContext(\"2d\")); }")(canvas, g);
+    jsFun("(canvasId, canvasRef) => {" +
+        "if(observedCanvasIDs.includes(canvasId)) return;" +
+        "observedCanvasIDs.push(canvasId);" +
+        "const canvas = getJsRef(canvasRef);" +
+        "canvas.width = canvas.offsetWidth;" +
+        "canvas.height = canvas.offsetHeight;" +
+        "new ResizeObserver(() => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }).observe(canvas);" +
+    "}")(canvasElementId, canvas);
+    -> Surface(canvas, g, false);
+};
+
+SizedSurface: fun = (width: u64, height: u64) -> Surface {
+    canvas: JsRef = JsRef();
+    g: JsRef = JsRef();
+    jsFun("(canvasRef, width, height, gRef) => {" +
+        "const canvas = document.createElement(\"canvas\");" +
+        "canvas.width = Number(width);" +
+        "canvas.height = Number(height);" +
+        "setJsRef(canvasRef, canvas);" +
+        "setJsRef(gRef, canvas.getContext(\"2d\"));" +
+    "}")(canvas, width, height, g);
+    -> Surface(canvas, g, false);
+};
+
+ImageSurface: fun = (imageUrl: str) -> Surface {
+    image: JsRef = JsRef();
+    jsFun("(imgRef, imgUrl) => {" +
+        "const img = new Image();" +
+        "img.src = imgUrl;" +
+        "setJsRef(imgRef, img);" +
+    "}")(image, imageUrl);
+    -> Surface(image, JsRef(), true);
+};

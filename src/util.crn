@@ -1,0 +1,52 @@
+
+jsEval: fun = f@eval;
+
+// holding a reference to a javascript object
+JsRef: type = $() {
+    refFun: fun = {};
+    get: fun = (expectedType: type) -> expectedType {
+        -> getJsRefCurrantValue(refFun, expectedType);
+    };
+    set: fun = (value: ?) {
+        -> setJsRefCurrant(refFun, value);
+    };
+};
+jsEval("function setJsRef(ref, value) {" +
+    // This one is hacky. "ref.refFun.ref" holds an object meant for the standard library and NOT for the user.
+    // It holds the object representing the function inside of the interpreter, and it's only here so that the
+    // function exposed to Javascript can call it's Currant equivalent.
+    // Here we use it as a kind of pointer, by attaching a new value to it, and later getting it.
+    // The interpreter will make sure it gets garbage collected correctly and won't get destroyed early.
+    "ref.refFun.ref.refValue = value;" +
+"}");
+jsEval("function getJsRef(ref) {" +
+    "return ref.refFun.ref.refValue;" +
+"}");
+jsEval("function getJsRefCurrant(refFun, type) {" +
+    "return type.fromValue(refFun.ref.refValue);" +
+"}");
+getJsRefCurrant: fun = f@getJsRefCurrant;
+jsEval("function setJsRefCurrant(refFun, value) {" +
+    "refFun.ref.refValue = value;" +
+"}");
+setJsRefCurrant: fun = f@setJsRefCurrant;
+
+// getting a function from js code
+jsEval("let blueberryLastJsFun = () => {};");
+jsEval("function blueberryGetLastJsFun() { return currantCreateFun(blueberryLastJsFun); }");
+getLastJsFun: fun = f@blueberryGetLastJsFun;
+jsFun: fun = (jsLambdaExpression: str) -> fun {
+    jsEval("blueberryLastJsFun = " + jsLambdaExpression + ";");
+    -> getLastJsFun();
+};
+
+// debug logging
+debug: fun = jsFun("(x) => console.log(x)");
+
+// getting file content
+getFileContent: fun = jsFun("(url, currantCallback) => {" +
+    "fetch(url)" +
+        ".then(response => response.text())" +
+        ".then(text => currantCallback(currantCreateStr(text)))" +
+        ".catch(error => { throw error; });" +
+"}");

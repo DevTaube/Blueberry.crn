@@ -1,0 +1,79 @@
+
+AudioSource: type = $() {
+
+    _sourceNode: JsRef = JsRef();
+    _gainNode: JsRef = JsRef();
+    _pannerNode: JsRef = JsRef();
+
+    jsFun("(audioRef, gainNodeRef, pannerNodeRef) => {" +
+        "const audio = getJsRef(audioRef);" +
+        "const gainNode = audio.createGain();" +
+        "const pannerNode = audio.createPanner();" +
+        "pannerNode.panningModel = \"HRTF\";" +
+        "pannerNode.distanceModel = \"exponential\";" +
+        "gainNode.connect(pannerNode);" +
+        "pannerNode.connect(audio.destination);" +
+        "setJsRef(gainNodeRef, gainNode);" +
+        "setJsRef(pannerNodeRef, pannerNode);" +
+    "}")(_bAudioContext, _gainNode, _pannerNode);
+
+    _pitch: f32 = 1f32;
+    _looping: bool = false;
+    _playing: bool = false;
+
+    _internalOnEnd: fun = {
+        _playing = _looping;
+    };
+
+    play: fun = (audio: Audio) {
+        if(!audio.loaded, ^{->});
+        jsFun("(audioRef, sourceNodeRef, srcRef, pitch, looping, onEnd, gainNodeRef) => {" +
+            "const audio = getJsRef(audioRef);" +
+            "const sourceNode = audio.createBufferSource();" +
+            "sourceNode.buffer = getJsRef(srcRef);" +
+            "sourceNode.playbackRate.value = pitch;" +
+            "sourceNode.loop = looping;" +
+            "sourceNode.onended = () => { onEnd(); };" +
+            "sourceNode.connect(getJsRef(gainNodeRef));" +
+            "sourceNode.start();" +
+            "setJsRef(sourceNodeRef, sourceNode);" +
+        "}")(_bAudioContext, _sourceNode, audio._audio, _pitch, _looping, _internalOnEnd, _gainNode);
+        _playing = true;
+    };
+
+    stop: fun = {
+        if(!_playing, ^{->});
+        jsFun("(sourceNodeRef) => { getJsRef(sourceNodeRef).stop(); }")(_sourceNode);
+        _playing = false;
+    };
+
+    repeat: fun = (doRepeat: bool) {
+        _looping = doRepeat;
+        if(!_playing, ^{->});
+        jsFun("(sourceNodeRef, repeat) => { getJsRef(sourceNodeRef).loop = repeat; }")(_sourceNode, _looping);
+    };
+
+    playing: fun = () -> bool {
+        -> _playing;
+    };
+
+    setPosition: fun = (x: f32, y: f32, z: f32) {
+        jsFun("(pannerNodeRef, x, y, z) => {" +
+            "const pannerNode = getJsRef(pannerNodeRef);" +
+            "pannerNode.positionX.value = x;" +
+            "pannerNode.positionY.value = y;" +
+            "pannerNode.positionZ.value = z;" +
+        "}")(_pannerNode, x, y, z);
+    };
+
+    setVolume: fun = (volume: f32) {
+        jsFun("(gainNodeRef, gain) => { getJsRef(gainNodeRef).gain.value = gain; }")(_gainNode, volume);
+    };
+
+    setPitch: fun = (pitch: f32) {
+        _pitch = pitch;
+        if(!_playing, ^{->});
+        jsFun("(sourceNodeRef, pitch) => { getJsRef(sourceNodeRef).playbackRate.value = pitch; }")(_sourceNode, pitch);
+    };
+
+};
