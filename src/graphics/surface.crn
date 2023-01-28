@@ -33,6 +33,51 @@ Surface: type = $(_canvas: JsRef, _g: JsRef, _loading: bool) {
     };
 
 
+    getPixel: fun = (x: u64, y: u64) -> arr {
+        if(!loaded, ^{-> [u8: 4u64: 0u8]});
+        r: JsRef = JsRef();
+        g: JsRef = JsRef();
+        b: JsRef = JsRef();
+        a: JsRef = JsRef();
+        jsFun("(gRef, x, y, cRRef, cGRef, cBRef, cARef) => {" +
+            "const pixelData = getJsRef(gRef).getImageData(Number(x), Number(y), 1, 1).data;" +
+            "setJsRef(cRRef, pixelData[0]);" +
+            "setJsRef(cGRef, pixelData[1]);" +
+            "setJsRef(cBRef, pixelData[2]);" +
+            "setJsRef(cARef, pixelData[3]);" +
+        "}")(_g, x, y, r, g, b, a);
+        -> [u8: r.get(u8), g.get(u8), b.get(u8), a.get(u8)];
+    };
+
+    resize: fun = (w: u64, h: u64) -> Surface {
+        new: Surface = SizedSurface(w, h);
+        if(!loaded, ^{-> new});
+        jsFun("(thisCanvasRef, thisGRef, newCanvasRef, newGRef) => {" +
+            "const thisCanvas = getJsRef(thisCanvasRef);" +
+            "const thisG = getJsRef(thisGRef);" +
+            "const newCanvas = getJsRef(newCanvasRef);" +
+            "const newG = getJsRef(newGRef);" +
+            "newG.drawImage(thisCanvas, 0, 0, newCanvas.width, newCanvas.height);" +
+            "const imgData = thisG.getImageData(0, 0, thisCanvas.width, thisCanvas.height).data;" +
+            "let zoomX = newCanvas.width / thisCanvas.width;" +
+            "let zoomY = newCanvas.height / thisCanvas.height;" +
+            "let i = 0;" +
+            "let w = 0;" +
+            "let h = 0;" +
+            "for(let x = 0; x < thisCanvas.width; x++) {" +
+                "for(let y = 0; y < thisCanvas.height; y++) {" +
+                    "i = (y * thisCanvas.width + x) * 4;" +
+                    "newG.fillStyle = `rgba(${imgData[i]}, ${imgData[i+1]}, ${imgData[i+2]}, ${imgData[i+3]/255})`;" +
+                    "w = Math.floor((x + 1) * zoomX) - Math.floor(x * zoomX);" +
+                    "h = Math.floor((y + 1) * zoomY) - Math.floor(y * zoomY);" +
+                    "newG.fillRect(Math.floor(x * zoomX), Math.floor(y * zoomY), w, h);" +
+                "}" +
+            "}" +
+        "}")(_canvas, _g, new._canvas, new._g);
+        -> new;
+    };
+
+
     _setCompositeOpClear: fun = {
         jsFun("(gRef) => { getJsRef(gRef).globalCompositeOperation = \"destination-out\"; }")(_g);
     };
@@ -52,6 +97,7 @@ Surface: type = $(_canvas: JsRef, _g: JsRef, _loading: bool) {
             "const g = getJsRef(gRef);" +
             "g.globalAlpha = Number(a) / 255;" +
             "g.drawImage(getJsRef(srcRef), Number(sX), Number(sY), Number(sW), Number(sH), x, y, w, h);" +
+            "g.globalAlpha = 1;" +
         "}")(_g, src._canvas, a, sX, sY, sW, sH, x, y, w, h);
         t._reset(_g);
     };

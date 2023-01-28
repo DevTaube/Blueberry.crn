@@ -5,7 +5,7 @@ jsEval: fun = f@eval;
 JsRef: type = $() {
     refFun: fun = {};
     get: fun = (expectedType: type) -> expectedType {
-        -> getJsRefCurrantValue(refFun, expectedType);
+        -> getJsRefCurrant(refFun, expectedType);
     };
     set: fun = (value: ?) {
         -> setJsRefCurrant(refFun, value);
